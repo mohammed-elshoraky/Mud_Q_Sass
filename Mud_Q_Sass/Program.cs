@@ -31,7 +31,7 @@ builder.Services.AddHttpClient("Auth", client =>
 // AuthService
 builder.Services.AddScoped<AuthService>();
 
-// AuthHeaderHandler مع IJSRuntime ⬅️ مهم
+// AuthHeaderHandler مع IJSRuntime
 builder.Services.AddScoped<AuthHeaderHandler>(sp =>
     new AuthHeaderHandler(
         sp.GetRequiredService<ILocalStorageService>(),
@@ -57,15 +57,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode()
-    .AddAdditionalAssemblies(typeof(Mud_Q_Sass.Components._Imports).Assembly);
-
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+
+// ⬇️ مرة واحدة بس!
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
