@@ -31,7 +31,7 @@ builder.Services.AddHttpClient("Auth", client =>
 // AuthService
 builder.Services.AddScoped<AuthService>();
 
-// AuthHeaderHandler مع IJSRuntime
+// AuthHeaderHandler
 builder.Services.AddScoped<AuthHeaderHandler>(sp =>
     new AuthHeaderHandler(
         sp.GetRequiredService<ILocalStorageService>(),
@@ -62,8 +62,6 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-
-// ⬇️ مرة واحدة بس!
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
