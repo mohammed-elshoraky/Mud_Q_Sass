@@ -1,5 +1,4 @@
-﻿// Services/CustomAuthStateProvider.cs
-using Blazored.LocalStorage;
+﻿using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -15,8 +14,6 @@ namespace Mud_Q_Sass.Services
         {
             _localStorage = localStorage;
             _authService = authService;
-
-            // اشترك في تغيير حالة الـ Auth
             _authService.OnAuthStateChanged += NotifyAuthStateChanged;
         }
 
@@ -28,6 +25,7 @@ namespace Mud_Q_Sass.Services
 
                 if (string.IsNullOrEmpty(token))
                 {
+                    Console.WriteLine("⚠️ No token in GetAuthenticationStateAsync");
                     return CreateAnonymousState();
                 }
 
@@ -35,11 +33,13 @@ namespace Mud_Q_Sass.Services
                 var identity = new ClaimsIdentity(claims, "jwt");
                 var user = new ClaimsPrincipal(identity);
 
+                Console.WriteLine($"✅ User authenticated: {user.Identity?.Name}, Role: {user.FindFirst(ClaimTypes.Role)?.Value}");
+
                 return new AuthenticationState(user);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetAuthenticationStateAsync: {ex.Message}");
+                Console.WriteLine($"❌ Error in GetAuthenticationStateAsync: {ex.Message}");
                 return CreateAnonymousState();
             }
         }
@@ -61,15 +61,14 @@ namespace Mud_Q_Sass.Services
             {
                 var handler = new JwtSecurityTokenHandler();
                 var token = handler.ReadJwtToken(jwt);
-
                 var claims = new List<Claim>();
 
                 foreach (var claim in token.Claims)
                 {
-                    // تأكد إن الـ Role Claims بتتضاف بشكل صحيح
                     if (claim.Type == "role" || claim.Type == ClaimTypes.Role)
                     {
                         claims.Add(new Claim(ClaimTypes.Role, claim.Value));
+                        Console.WriteLine($"✅ Role claim found: {claim.Value}");
                     }
                     else if (claim.Type == "unique_name" || claim.Type == ClaimTypes.Name)
                     {
@@ -85,7 +84,7 @@ namespace Mud_Q_Sass.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error parsing JWT: {ex.Message}");
+                Console.WriteLine($"❌ Error parsing JWT: {ex.Message}");
                 return new List<Claim>();
             }
         }

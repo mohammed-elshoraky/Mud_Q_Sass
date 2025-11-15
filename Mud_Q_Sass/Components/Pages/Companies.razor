@@ -1,4 +1,5 @@
 ﻿@page "/companies"
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @using Mud.Shared.DTOs
 @using Mud_Q_Sass.Services
@@ -86,6 +87,11 @@ else
             errorMessage = "فشل تحميل الشركات. تأكد أنك مسجل الدخول.";
             Console.Error.WriteLine(ex);
         }
+        catch (Exception ex)
+        {
+            errorMessage = "حدث خطأ غير متوقع.";
+            Console.Error.WriteLine(ex);
+        }
         finally
         {
             isLoading = false;
@@ -125,13 +131,33 @@ else
     private void OpenCreateDialog()
     {
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
-        Dialog.Show<CompanyDialog>("إضافة شركة جديدة", options);
+        var dialogRef = Dialog.Show<CompanyDialog>("إضافة شركة جديدة", options);
+        
+        dialogRef.Result.ContinueWith(async task =>
+        {
+            var result = await task;
+            if (!result.Canceled && result.Data != null)
+            {
+                await LoadCompaniesAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     private void OpenEditDialog(CompanyDto company)
     {
         var parameters = new DialogParameters { ["IsEdit"] = true, ["Company"] = company };
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
-        Dialog.Show<CompanyDialog>("تعديل الشركة", parameters, options);
+        var dialogRef = Dialog.Show<CompanyDialog>("تعديل الشركة", parameters, options);
+        
+        dialogRef.Result.ContinueWith(async task =>
+        {
+            var result = await task;
+            if (!result.Canceled && result.Data != null)
+            {
+                await LoadCompaniesAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 }

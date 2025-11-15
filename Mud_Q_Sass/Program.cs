@@ -11,7 +11,7 @@ builder.Services.AddMudServices();
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddBlazoredLocalStorage();
 
-// ⬇️ استخدم AddAuthorizationCore بس (بدون AddAuthentication)
+// Authorization
 builder.Services.AddAuthorizationCore(options =>
 {
     options.AddPolicy("SuperAdmin", policy => policy.RequireRole("SuperAdmin"));
@@ -19,24 +19,34 @@ builder.Services.AddAuthorizationCore(options =>
     options.AddPolicy("BranchAdmin", policy => policy.RequireRole("BranchAdmin"));
 });
 
-// ⬇️ سجل الـ AuthenticationStateProvider
+// AuthenticationStateProvider
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
-// HttpClients
+// HttpClient للـ Auth (بدون Handler)
 builder.Services.AddHttpClient("Auth", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7013/");
 });
 
+// AuthService
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<AuthHeaderHandler>();
 
+// AuthHeaderHandler مع IJSRuntime ⬅️ مهم
+builder.Services.AddScoped<AuthHeaderHandler>(sp =>
+    new AuthHeaderHandler(
+        sp.GetRequiredService<ILocalStorageService>(),
+        sp.GetRequiredService<IJSRuntime>()
+    )
+);
+
+// HttpClient للـ API (مع Handler)
 builder.Services.AddHttpClient("API", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7013/");
 })
 .AddHttpMessageHandler<AuthHeaderHandler>();
 
+// Services
 builder.Services.AddScoped<CompanyService>();
 
 var app = builder.Build();
@@ -47,12 +57,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode()
+    .AddAdditionalAssemblies(typeof(Mud_Q_Sass.Components._Imports).Assembly);
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
-
-// ⚠️ لا تستخدم UseAuthentication أو UseAuthorization هنا
-// لأن الـ Authentication بيحصل في الـ API مش في Blazor
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

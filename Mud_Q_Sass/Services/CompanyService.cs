@@ -1,5 +1,4 @@
-﻿// Frontend: Services/CompanyService.cs
-using Mud.Shared.Common;
+﻿using Mud.Shared.Common;
 using Mud.Shared.DTOs;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -18,8 +17,46 @@ namespace Mud_Q_Sass.Services
 
         public async Task<List<CompanyDto>> GetAllAsync()
         {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<CompanyDto>>>("api/company");
-            return response?.Success == true ? response.Data ?? new() : new();
+            try
+            {
+                Console.WriteLine("🔵 Calling API: api/company");
+
+                var response = await _http.GetAsync("api/company");
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                Console.WriteLine($"📡 Response Status: {response.StatusCode}");
+                Console.WriteLine($"📄 Response Body: {responseBody}");
+                Console.WriteLine($"🔑 Authorization Header: {_http.DefaultRequestHeaders.Authorization}");
+
+                // لو الـ Response مش OK، ارجع empty list
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"❌ API returned error: {response.StatusCode}");
+                    return new List<CompanyDto>();
+                }
+
+                // لو الـ Response فاضي
+                if (string.IsNullOrWhiteSpace(responseBody))
+                {
+                    Console.WriteLine("⚠️ API returned empty response");
+                    return new List<CompanyDto>();
+                }
+
+                var result = System.Text.Json.JsonSerializer.Deserialize<ApiResponse<List<CompanyDto>>>(
+                    responseBody,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                );
+
+                Console.WriteLine($"✅ API Response - Success: {result?.Success}, Count: {result?.Data?.Count}");
+
+                return result?.Success == true ? result.Data ?? new() : new();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error in GetAllAsync: {ex.Message}");
+                Console.WriteLine($"❌ Stack trace: {ex.StackTrace}");
+                return new List<CompanyDto>();
+            }
         }
 
         public async Task<CompanyDto?> CreateAsync(string name, IBrowserFile? logo)

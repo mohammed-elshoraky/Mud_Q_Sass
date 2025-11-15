@@ -11,32 +11,38 @@ namespace Mud_Q_Sass.Services
 
         public event Action? OnAuthStateChanged;
 
-        // استخدم "Auth" client (مش "API")
         public AuthService(IHttpClientFactory httpClientFactory, ILocalStorageService localStorage)
         {
-            _http = httpClientFactory.CreateClient("Auth"); // ⬅️ تغيير مهم
+            _http = httpClientFactory.CreateClient("Auth");
             _localStorage = localStorage;
         }
 
-        // ---------------------------
-        //         LOGIN
-        // ---------------------------
         public async Task<ApiResponse<AuthResponse>?> LoginAsync(LoginDto dto)
         {
-            var response = await _http.PostAsJsonAsync("api/auth/login", dto);
-            var content = await response.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
-
-            if (content?.Success == true && content.Data != null)
+            try
             {
-                await SaveTokens(content.Data);
-            }
+                var response = await _http.PostAsJsonAsync("api/auth/login", dto);
+                var content = await response.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
 
-            return content;
+                if (content?.Success == true && content.Data != null)
+                {
+                    await SaveTokens(content.Data);
+                    Console.WriteLine($"✅ Login successful. Token saved: {content.Data.AccessToken.Substring(0, 20)}...");
+                }
+                else
+                {
+                    Console.WriteLine($"❌ Login failed: {content?.Message}");
+                }
+
+                return content;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Login error: {ex.Message}");
+                return null;
+            }
         }
 
-        // ---------------------------
-        //        REGISTER
-        // ---------------------------
         public async Task<ApiResponse<AuthResponse>?> RegisterAsync(RegisterDto dto)
         {
             var response = await _http.PostAsJsonAsync("api/auth/register", dto);
@@ -50,9 +56,6 @@ namespace Mud_Q_Sass.Services
             return content;
         }
 
-        // ---------------------------
-        //      REFRESH TOKEN
-        // ---------------------------
         public async Task<ApiResponse<AuthResponse>?> RefreshTokenAsync()
         {
             var refreshToken = await _localStorage.GetItemAsync<string>("refreshToken");
@@ -69,9 +72,6 @@ namespace Mud_Q_Sass.Services
             return content;
         }
 
-        // ---------------------------
-        //          LOGOUT
-        // ---------------------------
         public async Task LogoutAsync()
         {
             var refreshToken = await _localStorage.GetItemAsync<string>("refreshToken");
@@ -96,9 +96,6 @@ namespace Mud_Q_Sass.Services
             OnAuthStateChanged?.Invoke();
         }
 
-        // ---------------------------
-        //        SAVE TOKENS
-        // ---------------------------
         private async Task SaveTokens(AuthResponse auth)
         {
             await _localStorage.SetItemAsync("accessToken", auth.AccessToken);
@@ -109,9 +106,6 @@ namespace Mud_Q_Sass.Services
             OnAuthStateChanged?.Invoke();
         }
 
-        // ---------------------------
-        //     GETTERS (Async)
-        // ---------------------------
         public Task<string?> GetTokenAsync() =>
             _localStorage.GetItemAsync<string>("accessToken").AsTask();
 
