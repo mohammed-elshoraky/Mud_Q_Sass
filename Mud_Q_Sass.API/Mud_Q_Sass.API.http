@@ -1,0 +1,6 @@
+@Mud_Q_Sass.API_HostAddress = http://localhost:5159
+
+GET {{Mud_Q_Sass.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

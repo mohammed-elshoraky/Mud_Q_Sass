@@ -1,0 +1,177 @@
+﻿@using Microsoft.AspNetCore.Components.Forms
+@using Mud.Shared.DTOs
+@using Mud_Q_Sass.Services
+
+@inject CompanyService CompanyService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(IsEdit ? "تعديل الشركة" : "إضافة شركة جديدة")
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudGrid Spacing="4">
+            <MudItem xs="12">
+                <MudTextField @bind-Value="CompanyName"
+                              Label="اسم الشركة"
+                              Required="true"
+                              RequiredError="اسم الشركة مطلوب"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Business" />
+            </MudItem>
+
+            @if (IsEdit)
+            {
+                <MudItem xs="12">
+                    <MudSwitch T="bool"
+                               @bind-Checked="IsActive"
+                               Label="الشركة نشطة"
+                               Color="Color.Success" />
+                </MudItem>
+            }
+
+            <MudItem xs="12">
+                <MudFileUpload T="IBrowserFile"
+                               FilesChanged="OnFileSelected"
+                               Accept=".jpg,.jpeg,.png,.webp"
+                               MaxFileSize="5242880">
+                    <ActivatorContent>
+                        <MudButton FullWidth Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Image">
+                            @(selectedFile == null
+                                ? "رفع شعار الشركة (اختياري)"
+                                : $"تم اختيار: {selectedFile.Name}")
+                        </MudButton>
+                    </ActivatorContent>
+                    <SelectedTemplate>
+                        <MudChip T="IBrowserFile" Color="Color.Success" Size="Size.Small">
+                            @context.Name (@string.Format("{0:F1} KB", context.Size / 1024f))
+                        </MudChip>
+                    </SelectedTemplate>
+                </MudFileUpload>
+            </MudItem>
+
+            @if (previewUrl != null)
+            {
+                <MudItem xs="12" Class="d-flex justify-center">
+                    <MudPaper Elevation="3" Class="pa-4">
+                        <MudText Typo="Typo.body2" Class="mb-2">معاينة الشعار</MudText>
+                        <MudImage Src="@previewUrl"
+                                  Width="180" Height="180"
+                                  ObjectFit="ObjectFit.Contain"
+                                  Class="rounded-lg" />
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@isSubmitting"
+                   OnClick="SaveAsync">
+            @if (isSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                <span class="mx-2">جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>حفظ</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public CompanyDto? Company { get; set; }
+
+    private string CompanyName { get; set; } = string.Empty;
+    private bool IsActive { get; set; } = true;
+
+    private IBrowserFile? selectedFile;
+    private string? previewUrl;
+    private bool isSubmitting = false;
+
+    protected override void OnParametersSet()
+    {
+        if (IsEdit && Company != null)
+        {
+            CompanyName = Company.Name;
+            IsActive = Company.IsActive;
+        }
+    }
+
+    private async Task OnFileSelected(IBrowserFile file)
+    {
+        selectedFile = file;
+
+        using var stream = file.OpenReadStream(5_242_880);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var bytes = ms.ToArray();
+        previewUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(bytes)}";
+
+        StateHasChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(CompanyName))
+        {
+            Snackbar.Add("اسم الشركة مطلوب", Severity.Error);
+            return;
+        }
+
+        isSubmitting = true;
+
+        try
+        {
+            if (IsEdit)
+            {
+                var success = await CompanyService.UpdateAsync(Company!.Id, CompanyName, IsActive, selectedFile);
+                if (success)
+                {
+                    Snackbar.Add("تم تعديل الشركة بنجاح", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                    Snackbar.Add("فشل تعديل الشركة", Severity.Error);
+                }
+            }
+            else
+            {
+                var newCompany = await CompanyService.CreateAsync(CompanyName, selectedFile);
+                if (newCompany != null)
+                {
+                    Snackbar.Add("تم إضافة الشركة بنجاح", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(newCompany));
+                }
+                else
+                {
+                    Snackbar.Add("فشل إضافة الشركة", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("حدث خطأ غير متوقع", Severity.Error);
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

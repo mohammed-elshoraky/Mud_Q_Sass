@@ -1,0 +1,88 @@
+﻿@using Blazored.LocalStorage
+@using Mud_Q_Sass.Services
+@inject AuthService AuthService
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@implements IDisposable
+
+<MudNavMenu>
+    <MudText Typo="Typo.h6" Class="px-4">SAS Q App</MudText>
+
+    @if (isLoggedIn)
+    {
+        <MudNavLink Href="/" Icon="@Icons.Material.Filled.Home">الرئيسية</MudNavLink>
+        <MudNavLink Href="/companies" Icon="@Icons.Material.Filled.Business">الشركات</MudNavLink>
+        <MudNavLink Href="/branches" Icon="@Icons.Material.Filled.LocationOn">الفروع</MudNavLink>
+        <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">المستخدمين</MudNavLink>
+
+        <MudDivider Class="my-4" />
+
+        <MudText Class="px-4 grey-text">مرحباً، @username</MudText>
+        <MudText Class="px-4 grey-text text-sm">الدور: @role</MudText>
+
+        <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth OnClick="Logout" Class="mx-4 mt-2">
+            تسجيل الخروج
+        </MudButton>
+    }
+    else
+    {
+        <MudNavLink Href="/login">تسجيل الدخول</MudNavLink>
+        <MudNavLink Href="/register">إنشاء حساب</MudNavLink>
+    }
+</MudNavMenu>
+
+@code {
+    private bool isLoggedIn = false;
+    private string username = "زائر";
+    private string role = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // اشترك في الأحداث
+            AuthService.OnAuthStateChanged += OnAuthChanged;
+
+            // حمّل البيانات (آمن 100% هنا)
+            await LoadUserData();
+        }
+    }
+
+    private async Task LoadUserData()
+    {
+        var token = await AuthService.GetTokenAsync();
+        isLoggedIn = !string.IsNullOrEmpty(token);
+
+        if (isLoggedIn)
+        {
+            username = await LocalStorage.GetItemAsync<string>("username") ?? "مستخدم";
+            role = await AuthService.GetRoleAsync() ?? "غير معروف";
+        }
+        else
+        {
+            username = "زائر";
+            role = "";
+        }
+
+        StateHasChanged();
+    }
+
+    private async void OnAuthChanged()
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadUserData();
+        });
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        AuthService.OnAuthStateChanged -= OnAuthChanged;
+    }
+}

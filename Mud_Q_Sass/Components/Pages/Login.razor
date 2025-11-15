@@ -1,0 +1,49 @@
+﻿@page "/login"
+@inject AuthService AuthService
+@inject NavigationManager Nav
+@using Mud.Shared.DTOs
+@using Mud_Q_Sass.Services
+
+<MudPaper Class="pa-8 ma-4" Elevation="5" Style="max-width: 450px; margin: 50px auto;">
+    <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6">تسجيل الدخول</MudText>
+
+    <EditForm Model="@loginDto" OnValidSubmit="LoginAsync">
+        <DataAnnotationsValidator />
+
+        <MudTextField @bind-Value="loginDto.Username" Label="اسم المستخدم" Variant="Variant.Outlined" Class="mb-4" Required />
+        <MudTextField @bind-Value="loginDto.Password" Label="كلمة المرور" Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-4" Required />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" ButtonType="ButtonType.Submit">
+            تسجيل الدخول
+        </MudButton>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">@ErrorMessage</MudAlert>
+    }
+
+    <MudText Align="Align.Center" Class="mt-4">
+        ليس لديك حساب؟ <MudLink Href="/register">إنشاء حساب جديد</MudLink>
+    </MudText>
+</MudPaper>
+
+@code {
+    private LoginDto loginDto = new();
+    private string ErrorMessage = "";
+
+    private async Task LoginAsync()
+    {
+        ErrorMessage = "";
+        var result = await AuthService.LoginAsync(loginDto);
+        if (result?.Success == true)
+        {
+            Nav.NavigateTo("/");
+
+        }
+        else
+        {
+            ErrorMessage = result?.Message ?? "فشل تسجيل الدخول";
+        }
+    }
+}

@@ -1,0 +1,56 @@
+﻿@page "/register"
+@using Mud.Shared.DTOs
+@using Mud_Q_Sass.Services
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<MudPaper Class="pa-8 ma-4" Elevation="5" Style="max-width: 500px; margin: 50px auto;">
+    <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6">إنشاء حساب جديد</MudText>
+
+    <EditForm Model="@registerDto" OnValidSubmit="RegisterAsync">
+        <DataAnnotationsValidator />
+
+        <MudTextField @bind-Value="registerDto.Username" Label="اسم المستخدم" Variant="Variant.Outlined" Class="mb-4" Required />
+        <MudTextField @bind-Value="registerDto.Email" Label="البريد الإلكتروني" Variant="Variant.Outlined" Class="mb-4" Required />
+        <MudTextField @bind-Value="registerDto.FullName" Label="الاسم الكامل" Variant="Variant.Outlined" Class="mb-4" />
+        <MudTextField @bind-Value="registerDto.Password" Label="كلمة المرور" InputType="InputType.Password" Variant="Variant.Outlined" Class="mb-4" Required />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" ButtonType="ButtonType.Submit">
+            إنشاء الحساب
+        </MudButton>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <MudAlert Severity="@(Success ? Severity.Success : Severity.Error)" Class="mt-4">
+            @Message
+        </MudAlert>
+    }
+
+    <MudText Align="Align.Center" Class="mt-4">
+        لديك حساب بالفعل؟ <MudLink Href="/login">تسجيل الدخول</MudLink>
+    </MudText>
+</MudPaper>
+
+@code {
+    private RegisterDto registerDto = new();
+    private string Message = "";
+    private bool Success = false;
+
+    private async Task RegisterAsync()
+    {
+        var result = await AuthService.RegisterAsync(registerDto);
+        if (result?.Success == true)
+        {
+            Success = true;
+            Message = "تم إنشاء الحساب بنجاح! جاري تحويلك...";
+            await Task.Delay(2000);
+            Nav.NavigateTo("/login");
+        }
+        else
+        {
+            Success = false;
+            Message = result?.Message ?? "فشل إنشاء الحساب";
+        }
+    }
+}

@@ -1,0 +1,137 @@
+﻿@page "/companies"
+@using Microsoft.AspNetCore.Authorization
+@using Mud.Shared.DTOs
+@using Mud_Q_Sass.Services
+@using MudBlazor
+@attribute [Authorize(Policy = "SuperAdmin")]
+@inject CompanyService CompanyService
+@inject ISnackbar Snackbar
+@inject IDialogService Dialog
+
+<MudText Typo="Typo.h2" Class="mb-6">إدارة الشركات</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+    إضافة شركة جديدة
+</MudButton>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <MudAlert Severity="Severity.Error" Class="mt-4">@errorMessage</MudAlert>
+}
+
+@if (isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Class="mt-4" />
+}
+else
+{
+    <MudTable T="CompanyDto" Items="@companies" Hover="true" Dense="true" Bordered="true" Striped="true" Class="mt-4">
+        <HeaderContent>
+            <MudTh>المعرف</MudTh>
+            <MudTh>الاسم</MudTh>
+            <MudTh>الحالة</MudTh>
+            <MudTh>تاريخ الإنشاء</MudTh>
+            <MudTh>الإجراءات</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Id</MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>
+                <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                    @(context.IsActive ? "نشط" : "معطل")
+                </MudChip>
+            </MudTd>
+            <MudTd>@context.CreatedAt.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>
+                <MudButton Size="Size.Small" Color="Color.Primary" OnClick="@(() => OpenEditDialog(context))">
+                    تعديل
+                </MudButton>
+                <MudButton Size="Size.Small" Color="Color.Error" Class="ml-2" OnClick="@(() => DeleteCompany(context.Id))">
+                    حذف
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<CompanyDto> companies = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadCompaniesAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCompaniesAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            companies = await CompanyService.GetAllAsync();
+
+            if (companies.Count == 0)
+            {
+                Snackbar.Add("لا توجد شركات حالياً", Severity.Info);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = "فشل تحميل الشركات. تأكد أنك مسجل الدخول.";
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeleteCompany(int id)
+    {
+        bool? result = await Dialog.ShowMessageBox(
+            "تأكيد الحذف",
+            "هل أنت متأكد أنك تريد حذف هذه الشركة؟",
+            yesText: "نعم", cancelText: "إلغاء");
+
+        if (result == true)
+        {
+            try
+            {
+                var success = await CompanyService.DeleteAsync(id);
+                if (success)
+                {
+                    companies.RemoveAll(c => c.Id == id);
+                    Snackbar.Add("تم الحذف بنجاح", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("فشل الحذف", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("حدث خطأ أثناء الحذف", Severity.Error);
+                Console.Error.WriteLine(ex);
+            }
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        Dialog.Show<CompanyDialog>("إضافة شركة جديدة", options);
+    }
+
+    private void OpenEditDialog(CompanyDto company)
+    {
+        var parameters = new DialogParameters { ["IsEdit"] = true, ["Company"] = company };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+        Dialog.Show<CompanyDialog>("تعديل الشركة", parameters, options);
+    }
+}
