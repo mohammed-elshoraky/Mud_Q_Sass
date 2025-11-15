@@ -1,56 +1,115 @@
 ﻿@page "/register"
 @using Mud.Shared.DTOs
 @using Mud_Q_Sass.Services
+@using MudBlazor
 @inject AuthService AuthService
 @inject NavigationManager Nav
+@inject ISnackbar Snackbar
 
-<MudPaper Class="pa-8 ma-4" Elevation="5" Style="max-width: 500px; margin: 50px auto;">
-    <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6">إنشاء حساب جديد</MudText>
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">إنشاء حساب جديد</MudText>
 
-    <EditForm Model="@registerDto" OnValidSubmit="RegisterAsync">
-        <DataAnnotationsValidator />
+        <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" FormName="RegisterForm">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="registerModel.Username"
+                          Label="اسم المستخدم"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          Class="mb-4" />
 
-        <MudTextField @bind-Value="registerDto.Username" Label="اسم المستخدم" Variant="Variant.Outlined" Class="mb-4" Required />
-        <MudTextField @bind-Value="registerDto.Email" Label="البريد الإلكتروني" Variant="Variant.Outlined" Class="mb-4" Required />
-        <MudTextField @bind-Value="registerDto.FullName" Label="الاسم الكامل" Variant="Variant.Outlined" Class="mb-4" />
-        <MudTextField @bind-Value="registerDto.Password" Label="كلمة المرور" InputType="InputType.Password" Variant="Variant.Outlined" Class="mb-4" Required />
+            <MudTextField @bind-Value="registerModel.Email"
+                          Label="البريد الإلكتروني"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Email"
+                          Required="true"
+                          Class="mb-4" />
 
-        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" ButtonType="ButtonType.Submit">
-            إنشاء الحساب
-        </MudButton>
-    </EditForm>
+            <MudTextField @bind-Value="registerModel.FullName"
+                          Label="الاسم الكامل"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          Class="mb-4" />
 
-    @if (!string.IsNullOrEmpty(Message))
-    {
-        <MudAlert Severity="@(Success ? Severity.Success : Severity.Error)" Class="mt-4">
-            @Message
-        </MudAlert>
-    }
+            <MudTextField @bind-Value="registerModel.Password"
+                          Label="كلمة المرور"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          Required="true"
+                          Class="mb-4" />
 
-    <MudText Align="Align.Center" Class="mt-4">
-        لديك حساب بالفعل؟ <MudLink Href="/login">تسجيل الدخول</MudLink>
-    </MudText>
-</MudPaper>
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Disabled="isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <span class="ms-2">جاري إنشاء الحساب...</span>
+                }
+                else
+                {
+                    <span>إنشاء حساب</span>
+                }
+            </MudButton>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">@errorMessage</MudAlert>
+        }
+
+        <MudText Align="Align.Center" Class="mt-4">
+            لديك حساب بالفعل؟ <MudLink Href="/login">تسجيل الدخول</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
 
 @code {
-    private RegisterDto registerDto = new();
-    private string Message = "";
-    private bool Success = false;
+    [SupplyParameterFromForm]
+    private RegisterDto? registerModel { get; set; }
 
-    private async Task RegisterAsync()
+    private bool isLoading = false;
+    private string? errorMessage;
+
+    protected override void OnInitialized()
     {
-        var result = await AuthService.RegisterAsync(registerDto);
-        if (result?.Success == true)
+        registerModel ??= new RegisterDto();
+    }
+
+    private async Task HandleRegister()
+    {
+        if (registerModel == null) return;
+
+        try
         {
-            Success = true;
-            Message = "تم إنشاء الحساب بنجاح! جاري تحويلك...";
-            await Task.Delay(2000);
-            Nav.NavigateTo("/login");
+            isLoading = true;
+            errorMessage = null;
+
+            var response = await AuthService.RegisterAsync(registerModel);
+
+            if (response?.Success == true)
+            {
+                Snackbar.Add("تم إنشاء الحساب بنجاح", Severity.Success);
+                Nav.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = response?.Message ?? "فشل إنشاء الحساب";
+                Snackbar.Add(errorMessage, Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Success = false;
-            Message = result?.Message ?? "فشل إنشاء الحساب";
+            errorMessage = "حدث خطأ غير متوقع";
+            Snackbar.Add(errorMessage, Severity.Error);
+            Console.WriteLine($"Register error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 }

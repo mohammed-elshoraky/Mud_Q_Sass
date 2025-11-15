@@ -1,49 +1,102 @@
 ﻿@page "/login"
-@inject AuthService AuthService
-@inject NavigationManager Nav
 @using Mud.Shared.DTOs
 @using Mud_Q_Sass.Services
+@using MudBlazor
+@inject AuthService AuthService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
 
-<MudPaper Class="pa-8 ma-4" Elevation="5" Style="max-width: 450px; margin: 50px auto;">
-    <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6">تسجيل الدخول</MudText>
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">تسجيل الدخول</MudText>
 
-    <EditForm Model="@loginDto" OnValidSubmit="LoginAsync">
-        <DataAnnotationsValidator />
+        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="LoginForm">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="loginModel.Username"
+                          Label="اسم المستخدم"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          Class="mb-4" />
 
-        <MudTextField @bind-Value="loginDto.Username" Label="اسم المستخدم" Variant="Variant.Outlined" Class="mb-4" Required />
-        <MudTextField @bind-Value="loginDto.Password" Label="كلمة المرور" Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-4" Required />
+            <MudTextField @bind-Value="loginModel.Password"
+                          Label="كلمة المرور"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          Required="true"
+                          Class="mb-4" />
 
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" ButtonType="ButtonType.Submit">
-            تسجيل الدخول
-        </MudButton>
-    </EditForm>
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Disabled="isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <span class="ms-2">جاري تسجيل الدخول...</span>
+                }
+                else
+                {
+                    <span>تسجيل الدخول</span>
+                }
+            </MudButton>
+        </EditForm>
 
-    @if (!string.IsNullOrEmpty(ErrorMessage))
-    {
-        <MudAlert Severity="Severity.Error" Class="mt-4">@ErrorMessage</MudAlert>
-    }
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">@errorMessage</MudAlert>
+        }
 
-    <MudText Align="Align.Center" Class="mt-4">
-        ليس لديك حساب؟ <MudLink Href="/register">إنشاء حساب جديد</MudLink>
-    </MudText>
-</MudPaper>
+        <MudText Align="Align.Center" Class="mt-4">
+            ليس لديك حساب؟ <MudLink Href="/register">إنشاء حساب جديد</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
 
 @code {
-    private LoginDto loginDto = new();
-    private string ErrorMessage = "";
+    [SupplyParameterFromForm]
+    private LoginDto? loginModel { get; set; }
 
-    private async Task LoginAsync()
+    private bool isLoading = false;
+    private string? errorMessage;
+
+    protected override void OnInitialized()
     {
-        ErrorMessage = "";
-        var result = await AuthService.LoginAsync(loginDto);
-        if (result?.Success == true)
-        {
-            Nav.NavigateTo("/");
+        loginModel ??= new LoginDto();
+    }
 
-        }
-        else
+    private async Task HandleLogin()
+    {
+        if (loginModel == null) return;
+
+        try
         {
-            ErrorMessage = result?.Message ?? "فشل تسجيل الدخول";
+            isLoading = true;
+            errorMessage = null;
+
+            var response = await AuthService.LoginAsync(loginModel);
+
+            if (response?.Success == true)
+            {
+                Snackbar.Add("تم تسجيل الدخول بنجاح", Severity.Success);
+                Nav.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = response?.Message ?? "فشل تسجيل الدخول";
+                Snackbar.Add(errorMessage, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "حدث خطأ غير متوقع";
+            Snackbar.Add(errorMessage, Severity.Error);
+            Console.WriteLine($"Login error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 }
